@@ -46,12 +46,10 @@ def train(config):
     # train BPE
     if config.bpe.get('train', False):
         dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=lambda x: x)
-        indices = list(range(len(dataset)))
-        dataset = Subset(dataset, indices[:int(config.dataset.get('train_part', 0.95) * len(dataset))])
-
         train_data_path = 'bpe_texts.txt'
         with open(train_data_path, "w") as f:
-            for i in range(len(dataset)):
+            # run ovefr only train part
+            for i in indices[:int(config.dataset.get('train_part', 0.95) * len(dataset))]:
                 text = dataset.get_text(i)
                 f.write(f"{text}\n")
         yttm.BPE.train(data=train_data_path, vocab_size=config.model.vocab_size, model=config.bpe.model_path)

@@ -3,7 +3,7 @@ import torch
 from model.layers import MainBlock
 from model.utils import init_weights
 
-def QuartzNet(nn.Module):
+class QuartzNet(nn.Module):
     def __init__(
             self,
             model_config,

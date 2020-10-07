@@ -183,6 +183,7 @@ def train(config):
                 os.path.join(config.train.get('checkpoint_path', 'checkpoints'), f'model_{epoch_idx}_{prev_wer}.pth'),
                 model
             )
+            wandb.save(os.path.join(config.train.get('checkpoint_path', 'checkpoints'), f'model_{epoch_idx}_{prev_wer}.pth'))
 
 
 

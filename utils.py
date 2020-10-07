@@ -1,3 +1,7 @@
+import torch
+import random
+import numpy as np
+
 def fix_seeds(seed=42):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)

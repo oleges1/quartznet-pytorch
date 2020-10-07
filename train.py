@@ -45,7 +45,7 @@ def train(config):
     fix_seeds(seed=config.train.get('seed', 42))
     # train BPE
     if config.bpe.get('train', False):
-        dataset = LJSpeechDataset(root=config.dataset.root, download=True)
+        dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=lambda x: x)
         indices = list(range(len(dataset)))
         dataset = Subset(dataset, indices[:int(config.dataset.get('train_part', 0.95) * len(dataset))])
 

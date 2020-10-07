@@ -1,0 +1,21 @@
+dataset:
+  root: DB/LJspeech
+  train_part: 0.95
+bpe:
+  train: true
+  model_path: yttm.bpe
+train:
+  seed: 42
+  num_workers: 8
+  batch_size: 8
+  clip_grad_norm: 15
+  epochs: 10
+  optimizer:
+    lr: 1e-5
+wandb:
+  project: quartznet_ljspeech
+  log_interval: 5000
+model:
+  name: _quartznet5x5_config
+  vocab_size: 120
+  num_features: 64

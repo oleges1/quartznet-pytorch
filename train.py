@@ -45,7 +45,7 @@ def train(config):
     fix_seeds(seed=config.train.get('seed', 42))
     # train BPE
     if config.bpe.get('train', False):
-        dataset = LJSpeechDataset(root=config.dataset.root, download=True, **args_dataset)
+        dataset = LJSpeechDataset(root=config.dataset.root, download=True)
         indices = list(range(len(dataset)))
         dataset = Subset(dataset, indices[:int(config.dataset.get('train_part', 0.95) * len(dataset))])
 
@@ -61,7 +61,7 @@ def train(config):
 
     transforms_train = Compose([
             ToNumpy(),
-            BPEtexts(bpe=bpe, dropout_prob=config.bpe.get('dropout_prob', 0.5)),
+            BPEtexts(bpe=bpe, dropout_prob=config.bpe.get('dropout_prob', 0.05)),
             AddGaussianNoise(
                 min_amplitude=0.001,
                 max_amplitude=0.015,
@@ -113,7 +113,7 @@ def train(config):
 
 
     model = QuartzNet(
-        model_config=quartznet_configs.get(config.model.config, '_quartznet5x5_config'),
+        model_config=quartznet_configs.get(config.model.name, '_quartznet5x5_config'),
         num_classes=config.model.vocab_size,
         num_features=config.model.num_features
     )
@@ -131,8 +131,8 @@ def train(config):
 
     prev_wer = 1000
     wandb.init(project=config.wandb.project, config=config)
-    wandb.watch(model, log="all", log_freq=config.wandb.log_interval)
-    for epoch_idx in tqdm(range(config.train.epochs)):
+    wandb.watch(model, log="all", log_freq=config.wandb.get('log_interval', 5000))
+    for epoch_idx in tqdm(range(config.train.get('epochs', 10))):
         # train:
         model.train()
         for batch_idx, batch in enumerate(train_dataloader):
@@ -143,7 +143,7 @@ def train(config):
             torch.nn.utils.clip_grad_norm_(optimizer.params(), config.train.get('clip_grad_norm', 15))
             optimizer.step()
 
-            if batch_idx % config.wandb.log_interval == 1:
+            if batch_idx % config.wandb.get('log_interval', 5000) == 1:
                 target_strings = decoder.convert_to_strings(batch['text'])
                 decoded_output, _ = decoder.decode(logits.softmax(dim=2).permute(1, 0, 2))
                 wer = np.mean([decoder.wer(true, pred) for true, pred in zip(target_strings, decoded_output)])

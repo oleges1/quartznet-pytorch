@@ -152,7 +152,7 @@ def train(config):
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.get('clip_grad_norm', 15))
             optimizer.step()
 
-            if batch_idx % config.wandb.get('log_interval', 5000) == 1:
+            if batch_idx % config.wandb.get('log_interval', 5000) == 0:
                 target_strings = decoder.convert_to_strings(batch['text'])
                 decoded_output, _ = decoder.decode(logits.permute(0, 2, 1).softmax(dim=2))
                 wer = np.mean([decoder.wer(true, pred) for true, pred in zip(target_strings, decoded_output)])
@@ -195,8 +195,8 @@ def train(config):
             os.makedirs(config.train.get('checkpoint_path', 'checkpoints'), exist_ok=True)
             prev_wer = val_stats['wer']
             torch.save(
-                os.path.join(config.train.get('checkpoint_path', 'checkpoints'), f'model_{epoch_idx}_{prev_wer}.pth'),
-                model
+                model.state_dict(),
+                os.path.join(config.train.get('checkpoint_path', 'checkpoints'), f'model_{epoch_idx}_{prev_wer}.pth')
             )
             wandb.save(os.path.join(config.train.get('checkpoint_path', 'checkpoints'), f'model_{epoch_idx}_{prev_wer}.pth'))
 

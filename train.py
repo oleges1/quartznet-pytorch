@@ -6,6 +6,7 @@ import time
 import argparse
 from tqdm import tqdm
 from collections import defaultdict
+import math
 
 # torchim:
 import torch
@@ -19,8 +20,10 @@ from data.librispeech import LibriDataset
 from data.ljspeech import LJSpeechDataset
 from data.collate import collate_fn
 from data.transforms import (
-        Compose, AddLengths, AudioSqueeze, MaskSpectrogram, ToNumpy
-        )
+        Compose, AddLengths, AudioSqueeze, 
+        MaskSpectrogram, ToNumpy, BPEtexts, MelSpectrogram
+)
+import youtokentome as yttm
 import torchaudio
 from audiomentations import (
     TimeStretch, PitchShift, AddGaussianNoise
@@ -46,6 +49,7 @@ def train(config):
     # train BPE
     if config.bpe.get('train', False):
         dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=lambda x: x)
+        indices = list(range(len(dataset)))
         train_data_path = 'bpe_texts.txt'
         with open(train_data_path, "w") as f:
             # run ovefr only train part
@@ -60,6 +64,7 @@ def train(config):
     transforms_train = Compose([
             ToNumpy(),
             BPEtexts(bpe=bpe, dropout_prob=config.bpe.get('dropout_prob', 0.05)),
+            AudioSqueeze(),
             AddGaussianNoise(
                 min_amplitude=0.001,
                 max_amplitude=0.015,
@@ -87,6 +92,7 @@ def train(config):
     transforms_val = Compose([
             ToNumpy(),
             BPEtexts(bpe=bpe),
+            AudioSqueeze(),
             MelSpectrogram(
                 # sample_rate: 16000
                 sample_rate=22050, # for LJspeech
@@ -111,10 +117,12 @@ def train(config):
 
 
     model = QuartzNet(
-        model_config=quartznet_configs.get(config.model.name, '_quartznet5x5_config'),
+        model_config=getattr(quartznet_configs, config.model.name, '_quartznet5x5_config'),
         num_classes=config.model.vocab_size,
-        num_features=config.model.num_features
+        feat_in=config.model.num_features,
+
     )
+    print(model)
     optimizer = torch.optim.AdamW(model.parameters(), **config.train.get('optimizer', {}))
 
     if config.train.get('from_checkpoint', None) is not None:
@@ -136,14 +144,17 @@ def train(config):
         for batch_idx, batch in enumerate(train_dataloader):
             optimizer.zero_grad()
             logits = model(batch['audio'])
-            loss = criterion(logits.permute(2, 0, 1), batch['text'], batch['input_lengths'], batch['target_lengths'])
+            output_length = torch.ceil(batch['input_lengths'].float() / model.stride).int()
+            loss = criterion(logits.permute(2, 0, 1), batch['text'], output_length, batch['target_lengths'])
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(optimizer.params(), config.train.get('clip_grad_norm', 15))
+            torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.get('clip_grad_norm', 15))
             optimizer.step()
 
             if batch_idx % config.wandb.get('log_interval', 5000) == 1:
                 target_strings = decoder.convert_to_strings(batch['text'])
-                decoded_output, _ = decoder.decode(logits.softmax(dim=2).permute(1, 0, 2))
+                print(logits.shape)
+                decoded_output, _ = decoder.decode(logits.permute(0, 2, 1).softmax(dim=2))
+                print(target_strings, decoded_output)
                 wer = np.mean([decoder.wer(true, pred) for true, pred in zip(target_strings, decoded_output)])
                 cer = np.mean([decoder.cer(true, pred) for true, pred in zip(target_strings, decoded_output)])
                 step = epoch_idx * len(train_dataloader) * train_dataloader.batch_size + batch_idx * train_dataloader.batch_size
@@ -160,7 +171,8 @@ def train(config):
         for batch_idx, batch in enumerate(val_dataloader):
             with torch.no_grad():
                 logits = model(batch['audio'])
-                loss = criterion(logits.permute(2, 0, 1), batch['text'], batch['input_lengths'], batch['target_lengths'])
+                output_length = torch.ceil(batch['input_lengths'].float() / model.stride).int()
+                loss = criterion(logits.permute(2, 0, 1), batch['text'], output_length, batch['target_lengths'])
 
             target_strings = decoder.convert_to_strings(batch['text'])
             decoded_output, _ = decoder.decode(logits.softmax(dim=2).permute(1, 0, 2))

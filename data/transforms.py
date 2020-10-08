@@ -1,6 +1,8 @@
 # import albumentations as album
 import torchaudio
 import random
+import numpy as np
+import torch
 # from torch.utils import data
 
 class Compose(object):
@@ -11,7 +13,11 @@ class Compose(object):
 
     def __call__(self, data):
         for t in self.transforms:
-            data = t(data)
+            try:
+              data = t(data)
+            except TypeError:
+              # audiomentation transform
+              data['audio'] = t(data['audio'], sample_rate=data['sample_rate'])
         return data
 
 class AddLengths:
@@ -31,7 +37,7 @@ class BPEtexts:
         self.dropout_prob = dropout_prob
 
     def __call__(self, data):
-        data['text'] = torch.tensor(bpe.encode(data['text'], dropout_prob=self.dropout_prob))
+        data['text'] = torch.tensor(self.bpe.encode(data['text'], eos=True, dropout_prob=self.dropout_prob))
         return data
 
 

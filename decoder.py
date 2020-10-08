@@ -35,12 +35,15 @@ class Decoder(object):
 
     def __init__(self, bpe, blank_index=0):
         # e.g. labels = "_'ABCDEFGHIJKLMNOPQRSTUVWXYZ#"
-        self.labels = bpe.vocab()
+        self.labels = labels = bpe.vocab()
         self.int_to_char = bpe.id_to_subword
         self.blank_index = blank_index
-        space_index = len(labels)  # To prevent errors in decode, we add an out of bounds index for the space
-        if ' ' in labels:
-            space_index = labels.index(' ')
+        space_index = None  # To prevent errors in decode, we add an out of bounds index for the space
+        print(labels)
+        if '▁' in labels:
+            space_index = labels.index('▁')
+        else:
+            raise ValueError('I wanna break free!!!')
         self.space_index = space_index
 
     def wer(self, s1, s2):
@@ -144,9 +147,6 @@ class BeamCTCDecoder(Decoder):
 
 
 class GreedyDecoder(Decoder):
-    def __init__(self, labels, blank_index=0):
-        super(GreedyDecoder, self).__init__(labels, blank_index)
-
     def convert_to_strings(self, sequences, sizes=None, remove_repetitions=False, return_offsets=False):
         """Given a list of numeric sequences, returns the corresponding strings"""
         strings = []
@@ -154,9 +154,9 @@ class GreedyDecoder(Decoder):
         for x in range(len(sequences)):
             seq_len = sizes[x] if sizes is not None else len(sequences[x])
             string, string_offsets = self.process_string(sequences[x], seq_len, remove_repetitions)
-            strings.append([string])  # We only return one path
+            strings.append(string)  # We only return one path
             if return_offsets:
-                offsets.append([string_offsets])
+                offsets.append(string_offsets)
         if return_offsets:
             return strings, offsets
         else:
@@ -172,7 +172,7 @@ class GreedyDecoder(Decoder):
                 if remove_repetitions and i != 0 and char == self.int_to_char(sequence[i - 1].item()):
                     pass
                 elif char == self.labels[self.space_index]:
-                    string += ' '
+                    string += '▁'
                     offsets.append(i)
                 else:
                     string = string + char

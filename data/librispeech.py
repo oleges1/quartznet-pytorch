@@ -5,7 +5,7 @@ import os
 class LibriDataset(torchaudio.datasets.LIBRISPEECH):
     def __init__(self, transforms, *args, **kwargs):
         if kwargs.get('download', False):
-            os.makedirs(kwargs['root'])
+            os.makedirs(kwargs['root'], exist_ok=True)
         super(LibriDataset, self).__init__(*args, **kwargs)
         self.transforms = transforms
 

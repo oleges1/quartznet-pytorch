@@ -61,19 +61,19 @@ def get_conv_bn_layer(in_channels, out_channels, kernel_size=11,
 
     if groups > 1:
         layers.append(GroupShuffle(groups, out_channels))
-    return nn.Sequential(layers)
+    return nn.Sequential(*layers)
 
 
-def get_act_dropout_layer(self, drop_prob=0.2, activation='relu'):
+def get_act_dropout_layer(drop_prob=0.2, activation='relu'):
     if activation is None or activation == 'tanh':
         activation = nn.Hardtanh(min_val=0.0, max_val=20.0)
     elif activation == 'relu':
-        activation = nn.ReLU(inplace=True)
+        activation = nn.ReLU()
     layers = [
         activation,
         nn.Dropout(p=drop_prob)
     ]
-    return nn.Sequential(layers)
+    return nn.Sequential(*layers)
 
 
 class MainBlock(nn.Module):
@@ -82,12 +82,12 @@ class MainBlock(nn.Module):
              groups=1, separable=False, normalization="batch",
              norm_groups=1):
         super(MainBlock, self).__init__()
-        padding_val = get_same_padding(kernel_size[0], stride[0], dilation[0])
+        padding_val = get_same_padding(kernel_size, stride, dilation)
 
         temp_planes = inplanes
-        self.net = []
-        for _ in range(repeat - 1):
-            self.net.append(
+        net = []
+        for _ in range(repeat):
+            net.append(
                 get_conv_bn_layer(
                     temp_planes,
                     planes,
@@ -96,16 +96,15 @@ class MainBlock(nn.Module):
                     dilation=dilation,
                     padding=padding_val,
                     groups=groups,
-                    heads=heads,
                     separable=separable,
                     normalization=normalization,
                     norm_groups=norm_groups)
             )
-            self.net.append(
+            net.append(
                 get_act_dropout_layer(dropout, activation)
             )
             temp_planes = planes
-        self.net = nn.Sequential(self.net)
+        self.net = nn.Sequential(*net)
         self.residual = residual
         if self.residual:
             self.residual_layer = get_conv_bn_layer(

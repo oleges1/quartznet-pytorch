@@ -9,7 +9,7 @@ def get_same_padding(kernel_size, stride, dilation):
     return kernel_size // 2
 
 def init_weights(m, mode='xavier_uniform'):
-    if isinstance(m, nn.Conv1d) or isinstance(m, MaskedConv1d):
+    if isinstance(m, nn.Conv1d):
         if mode == 'xavier_uniform':
             nn.init.xavier_uniform_(m.weight, gain=1.0)
         elif mode == 'xavier_normal':

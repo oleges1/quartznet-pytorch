@@ -37,7 +37,7 @@ from model.quartznet import QuartzNet
 # utils:
 import yaml
 from easydict import EasyDict as edict
-from utils import fix_seeds
+from utils import fix_seeds, remove_from_dict
 import wandb
 # from misc.optimizers import AdamW, Novograd
 # from misc.lr_policies import noam_v1, cosine_annealing
@@ -84,7 +84,7 @@ def train(config):
             MelSpectrogram(
                 # sample_rate: 16000
                 sample_rate=22050, # for LJspeech
-                n_mels=config.model.num_features
+                n_mels=config.model.feat_in
             ),
             MaskSpectrogram(),
             AddLengths()
@@ -98,7 +98,7 @@ def train(config):
             MelSpectrogram(
                 # sample_rate: 16000
                 sample_rate=22050, # for LJspeech
-                n_mels=config.model.num_features
+                n_mels=config.model.feat_in
             ),
             AddLengths()
     ])
@@ -120,10 +120,9 @@ def train(config):
 
     model = QuartzNet(
         model_config=getattr(quartznet_configs, config.model.name, '_quartznet5x5_config'),
-        num_classes=config.model.vocab_size,
-        feat_in=config.model.num_features,
-
+        **remove_from_dict(config.model, ['name'])
     )
+
     print(model)
     optimizer = torch.optim.AdamW(model.parameters(), **config.train.get('optimizer', {}))
 
@@ -133,7 +132,7 @@ def train(config):
     if torch.cuda.is_available():
         model = model.cuda()
 
-    criterion = nn.CTCLoss(blank=0, reduction='sum', zero_infinity=True)
+    criterion = nn.CTCLoss(blank=0, reduction='mean', zero_infinity=True)
     # criterion = nn.CTCLoss(blank=config.model.vocab_size)
     decoder = GreedyDecoder(bpe=bpe)
 
@@ -163,7 +162,10 @@ def train(config):
                     "train_loss": loss.item(),
                     "train_wer": wer,
                     "train_cer": cer,
-                    "train_samples": wandb.Table(columns=['gt_text', 'pred_text'], data=zip(target_strings, decoded_output))
+                    "train_samples": wandb.Table(
+                        columns=['gt_text', 'pred_text'], 
+                        data=zip(target_strings, decoded_output)
+                    )
                 }, step=step)
 
         # validate:

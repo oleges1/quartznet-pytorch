@@ -6,16 +6,18 @@ bpe:
   model_path: yttm.bpe
 train:
   seed: 42
-  num_workers: 4
-  batch_size: 8
+  num_workers: 32
+  batch_size: 32
   clip_grad_norm: 15
-  epochs: 300
+  epochs: 50
   optimizer:
-    lr: 1.e-5
+    lr: 0.005
+    weight_decay: 0.001
+
 wandb:
   project: quartznet_ljspeech
-  log_interval: 10
+  log_interval: 300
 model:
   name: _quartznet5x5_config
   vocab_size: 120
-  num_features: 64
+  feat_in: 64

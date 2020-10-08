@@ -8,7 +8,7 @@ class QuartzNet(nn.Module):
             self,
             model_config,
             feat_in,
-            num_classes,
+            vocab_size,
             activation='relu',
             normalization_mode="batch",
             norm_groups=-1,
@@ -21,16 +21,14 @@ class QuartzNet(nn.Module):
         feat_in = feat_in * frame_splicing
         self.stride = 1
 
-        print(model_config, feat_in, num_classes)
-
         residual_panes = []
         layers = []
         for lcfg in model_config:
-            dense_res = []
+            self.stride *= lcfg['stride']
+            
             groups = lcfg.get('groups', 1)
             separable = lcfg.get('separable', False)
             residual = lcfg.get('residual', True)
-            self.stride *= lcfg['stride']
             layers.append(
                 MainBlock(feat_in,
                     lcfg['filters'],
@@ -48,7 +46,7 @@ class QuartzNet(nn.Module):
             feat_in = lcfg['filters']
 
         self.encoder = nn.Sequential(*layers)
-        self.classify = nn.Conv1d(1024, num_classes,
+        self.classify = nn.Conv1d(1024, vocab_size,
                       kernel_size=1, bias=True)
         self.apply(lambda x: init_weights(x, mode=init_mode))
 

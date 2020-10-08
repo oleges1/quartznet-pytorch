@@ -33,15 +33,16 @@ class Decoder(object):
         space_index (int, optional): index for the space ' ' character. Defaults to 28.
     """
 
-    def __init__(self, bpe, blank_index=0):
+    def __init__(self, bpe, blank_index=0, space_simbol='▁'):
         # e.g. labels = "_'ABCDEFGHIJKLMNOPQRSTUVWXYZ#"
         self.labels = labels = bpe.vocab()
+        print(labels)
         self.int_to_char = bpe.id_to_subword
         self.blank_index = blank_index
+        self.space_simbol = space_simbol
         space_index = None  # To prevent errors in decode, we add an out of bounds index for the space
-        print(labels)
-        if '▁' in labels:
-            space_index = labels.index('▁')
+        if self.space_simbol in labels:
+            space_index = labels.index(self.space_simbol)
         else:
             raise ValueError('I wanna break free!!!')
         self.space_index = space_index
@@ -56,15 +57,15 @@ class Decoder(object):
         """
 
         # build mapping of words to integers
-        b = set(s1.split() + s2.split())
+        b = set(s1.split(self.space_simbol) + s2.split(self.space_simbol))
         word2char = dict(zip(b, range(len(b))))
 
         # map the words to a char array (Levenshtein packages only accepts
         # strings)
-        w1 = [chr(word2char[w]) for w in s1.split()]
-        w2 = [chr(word2char[w]) for w in s2.split()]
+        w1 = [chr(word2char[w]) for w in s1.split(self.space_simbol)]
+        w2 = [chr(word2char[w]) for w in s2.split(self.space_simbol)]
 
-        return Lev.distance(''.join(w1), ''.join(w2))
+        return Lev.distance(''.join(w1), ''.join(w2)) / len(w1)
 
     def cer(self, s1, s2):
         """
@@ -73,8 +74,8 @@ class Decoder(object):
             s1 (string): space-separated sentence
             s2 (string): space-separated sentence
         """
-        s1, s2, = s1.replace(' ', ''), s2.replace(' ', '')
-        return Lev.distance(s1, s2)
+        s1_concated, s2_concated = s1.replace(self.space_simbol, ''), s2.replace(self.space_simbol, '')
+        return Lev.distance(s1_concated, s2_concated) / len(s1)
 
     def decode(self, probs, sizes=None):
         """
@@ -172,7 +173,7 @@ class GreedyDecoder(Decoder):
                 if remove_repetitions and i != 0 and char == self.int_to_char(sequence[i - 1].item()):
                     pass
                 elif char == self.labels[self.space_index]:
-                    string += '▁'
+                    string += self.space_simbol
                     offsets.append(i)
                 else:
                     string = string + char

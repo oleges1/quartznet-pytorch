@@ -6,3 +6,4 @@ torchaudio
 librosa
 python-Levenshtein
 audiomentations
+pytorch_warmup

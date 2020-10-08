@@ -14,6 +14,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Subset, ConcatDataset
 # from tensorboardX import SummaryWriter
 import numpy as np
+import pytorch_warmup as warmup
 
 # data:
 from data.librispeech import LibriDataset
@@ -125,6 +126,9 @@ def train(config):
 
     print(model)
     optimizer = torch.optim.AdamW(model.parameters(), **config.train.get('optimizer', {}))
+    num_steps = len(train_dataloader) * config.train.get('epochs', 10)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_steps)
+    warmup_scheduler = warmup.UntunedLinearWarmup(optimizer)
 
     if config.train.get('from_checkpoint', None) is not None:
         model.load_weights(config.train.from_checkpoint)
@@ -151,6 +155,8 @@ def train(config):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.get('clip_grad_norm', 15))
             optimizer.step()
+            lr_scheduler.step()
+            warmup_scheduler.dampen()
 
             if batch_idx % config.wandb.get('log_interval', 5000) == 0:
                 target_strings = decoder.convert_to_strings(batch['text'])

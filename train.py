@@ -20,7 +20,7 @@ from data.librispeech import LibriDataset
 from data.ljspeech import LJSpeechDataset
 from data.collate import collate_fn
 from data.transforms import (
-        Compose, AddLengths, AudioSqueeze, 
+        Compose, AddLengths, AudioSqueeze, TextPreprocess,
         MaskSpectrogram, ToNumpy, BPEtexts, MelSpectrogram
 )
 import youtokentome as yttm
@@ -62,6 +62,7 @@ def train(config):
     bpe = yttm.BPE(model=config.bpe.model_path)
 
     transforms_train = Compose([
+            TextPreprocess(),
             ToNumpy(),
             BPEtexts(bpe=bpe, dropout_prob=config.bpe.get('dropout_prob', 0.05)),
             AudioSqueeze(),
@@ -90,6 +91,7 @@ def train(config):
     ])
 
     transforms_val = Compose([
+            TextPreprocess(),
             ToNumpy(),
             BPEtexts(bpe=bpe),
             AudioSqueeze(),
@@ -142,19 +144,18 @@ def train(config):
         # train:
         model.train()
         for batch_idx, batch in enumerate(train_dataloader):
+            batch = {k: v.cuda() for k, v in batch.items()}
             optimizer.zero_grad()
             logits = model(batch['audio'])
             output_length = torch.ceil(batch['input_lengths'].float() / model.stride).int()
-            loss = criterion(logits.permute(2, 0, 1), batch['text'], output_length, batch['target_lengths'])
+            loss = criterion(logits.permute(2, 0, 1).log_softmax(dim=2), batch['text'], output_length, batch['target_lengths'])
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.get('clip_grad_norm', 15))
             optimizer.step()
 
             if batch_idx % config.wandb.get('log_interval', 5000) == 1:
                 target_strings = decoder.convert_to_strings(batch['text'])
-                print(logits.shape)
                 decoded_output, _ = decoder.decode(logits.permute(0, 2, 1).softmax(dim=2))
-                print(target_strings, decoded_output)
                 wer = np.mean([decoder.wer(true, pred) for true, pred in zip(target_strings, decoded_output)])
                 cer = np.mean([decoder.cer(true, pred) for true, pred in zip(target_strings, decoded_output)])
                 step = epoch_idx * len(train_dataloader) * train_dataloader.batch_size + batch_idx * train_dataloader.batch_size
@@ -169,13 +170,14 @@ def train(config):
         model.eval()
         val_stats = defaultdict(list)
         for batch_idx, batch in enumerate(val_dataloader):
+            batch = {k: v.cuda() for k, v in batch.items()}
             with torch.no_grad():
                 logits = model(batch['audio'])
                 output_length = torch.ceil(batch['input_lengths'].float() / model.stride).int()
-                loss = criterion(logits.permute(2, 0, 1), batch['text'], output_length, batch['target_lengths'])
+                loss = criterion(logits.permute(2, 0, 1).log_softmax(dim=2), batch['text'], output_length, batch['target_lengths'])
 
             target_strings = decoder.convert_to_strings(batch['text'])
-            decoded_output, _ = decoder.decode(logits.softmax(dim=2).permute(1, 0, 2))
+            decoded_output, _ = decoder.decode(logits.permute(0, 2, 1).softmax(dim=2))
             wer = np.mean([decoder.wer(true, pred) for true, pred in zip(target_strings, decoded_output)])
             cer = np.mean([decoder.cer(true, pred) for true, pred in zip(target_strings, decoded_output)])
             val_stats['val_loss'].append(loss.item())
@@ -183,11 +185,12 @@ def train(config):
             val_stats['cer'].append(cer)
         for k, v in val_stats.items():
             val_stats[k] = np.mean(v)
-        val_stats['val_samples'] = wandb.Table(columns=['gt_text', 'pred_text'], data=zip(true_texts, pred_texts))
+        val_stats['val_samples'] = wandb.Table(columns=['gt_text', 'pred_text'], data=zip(target_strings, decoded_output))
         wandb.log(val_stats, step=step)
 
         # save model, TODO: save optimizer:
         if val_stats['wer'] < prev_wer:
+            os.makedirs(config.train.get('checkpoint_path', 'checkpoints'), exist_ok=True)
             prev_wer = val_stats['wer']
             torch.save(
                 os.path.join(config.train.get('checkpoint_path', 'checkpoints'), f'model_{epoch_idx}_{prev_wer}.pth'),

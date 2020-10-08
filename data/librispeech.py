@@ -1,6 +1,7 @@
 from torch.utils import data
 import torchaudio
 import os
+from data.transforms import TextPreprocess
 
 class LibriDataset(torchaudio.datasets.LIBRISPEECH):
     def __init__(self, transforms, *args, **kwargs):
@@ -8,6 +9,7 @@ class LibriDataset(torchaudio.datasets.LIBRISPEECH):
             os.makedirs(kwargs['root'], exist_ok=True)
         super(LibriDataset, self).__init__(*args, **kwargs)
         self.transforms = transforms
+        self.text_preprocess = TextPreprocess()
 
     def __getitem__(self, idx):
         audio, sample_rate, text, _, _, _ = super().__getitem__(idx)
@@ -30,4 +32,4 @@ class LibriDataset(torchaudio.datasets.LIBRISPEECH):
                 # Translation not found
                 raise FileNotFoundError("Translation not found for " + fileid_audio)
 
-        return utterance
+        return self.text_preprocess({'text' : utterance})['text']

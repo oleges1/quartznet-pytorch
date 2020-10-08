@@ -3,6 +3,7 @@ import torchaudio
 import random
 import numpy as np
 import torch
+import string
 # from torch.utils import data
 
 class Compose(object):
@@ -37,9 +38,13 @@ class BPEtexts:
         self.dropout_prob = dropout_prob
 
     def __call__(self, data):
-        data['text'] = torch.tensor(self.bpe.encode(data['text'], eos=True, dropout_prob=self.dropout_prob))
+        data['text'] = torch.tensor(self.bpe.encode(data['text'], dropout_prob=self.dropout_prob))
         return data
 
+class TextPreprocess:
+    def __call__(self, data):
+        data['text'] = data['text'].lower().strip().translate(str.maketrans('', '', string.punctuation))
+        return data
 
 class ToNumpy:
     """

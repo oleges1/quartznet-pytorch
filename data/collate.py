@@ -1,8 +1,25 @@
 """Simple collate function for data with different lengths."""
 __author__ = 'Erdene-Ochir Tuguldur'
 
+import torch
 import numpy as np
 from torch.utils.data.dataloader import default_collate
+
+
+def gpu_collate(batch):
+    '''
+    Padds batch of variable length
+
+    note: it converts things ToTensor manually here since the ToTensor transform
+    assume it takes in images rather than arbitrary tensors.
+    '''
+    keys = batch[0].keys()
+    for key in keys:
+        items = [item[key] for item in batch]
+        if len(items[0]) < 2:
+            items = [item[None] for item in items]
+        items = torch.nn.utils.rnn.pad_sequence(items)
+    return batch
 
 
 def collate_fn(batch):

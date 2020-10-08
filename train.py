@@ -10,6 +10,7 @@ import math
 
 # torchim:
 import torch
+torch.multiprocessing.set_start_method('spawn')
 from torch import nn
 from torch.utils.data import DataLoader, Subset, ConcatDataset
 # from tensorboardX import SummaryWriter
@@ -19,12 +20,14 @@ import pytorch_warmup as warmup
 # data:
 from data.librispeech import LibriDataset
 from data.ljspeech import LJSpeechDataset
-from data.collate import collate_fn
+from data.collate import collate_fn, gpu_collate
 from data.transforms import (
         Compose, AddLengths, AudioSqueeze, TextPreprocess,
-        MaskSpectrogram, ToNumpy, BPEtexts, MelSpectrogram
+        MaskSpectrogram, ToNumpy, BPEtexts, MelSpectrogram,
+        ToGpu
 )
 import youtokentome as yttm
+
 import torchaudio
 from audiomentations import (
     TimeStretch, PitchShift, AddGaussianNoise
@@ -61,6 +64,12 @@ def train(config):
         os.system(f'rm {train_data_path}')
 
     bpe = yttm.BPE(model=config.bpe.model_path)
+    def bpe_reduce(self):
+      return (
+        self.__class__,
+        (str(config.bpe.model_path),),
+      )
+    yttm.BPE.__reduce__ = bpe_reduce
 
     transforms_train = Compose([
             TextPreprocess(),
@@ -82,13 +91,18 @@ def train(config):
                 max_semitones=4,
                 p=0.5
             ),
+            AddLengths(),
+            ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
             MelSpectrogram(
                 # sample_rate: 16000
                 sample_rate=22050, # for LJspeech
                 n_mels=config.model.feat_in
-            ),
-            MaskSpectrogram(),
-            AddLengths()
+            ).to('cuda' if torch.cuda.is_available() else 'cpu'),
+            MaskSpectrogram(
+                probability=0.5,
+                time_mask_max_percentage=0.05,
+                frequency_mask_max_percentage=0.15
+            )
     ])
 
     transforms_val = Compose([
@@ -96,12 +110,13 @@ def train(config):
             ToNumpy(),
             BPEtexts(bpe=bpe),
             AudioSqueeze(),
+            AddLengths(),
+            ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
             MelSpectrogram(
                 # sample_rate: 16000
                 sample_rate=22050, # for LJspeech
                 n_mels=config.model.feat_in
-            ),
-            AddLengths()
+            ).to('cuda' if torch.cuda.is_available() else 'cpu')
     ])
 
     # load datasets
@@ -125,10 +140,10 @@ def train(config):
     )
 
     print(model)
-    optimizer = torch.optim.AdamW(model.parameters(), **config.train.get('optimizer', {}))
+    optimizer = torch.optim.Adam(model.parameters(), **config.train.get('optimizer', {}))
     num_steps = len(train_dataloader) * config.train.get('epochs', 10)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_steps)
-    warmup_scheduler = warmup.UntunedLinearWarmup(optimizer)
+    # warmup_scheduler = warmup.UntunedLinearWarmup(optimizer)
 
     if config.train.get('from_checkpoint', None) is not None:
         model.load_weights(config.train.from_checkpoint)
@@ -147,7 +162,6 @@ def train(config):
         # train:
         model.train()
         for batch_idx, batch in enumerate(train_dataloader):
-            batch = {k: v.cuda() for k, v in batch.items()}
             optimizer.zero_grad()
             logits = model(batch['audio'])
             output_length = torch.ceil(batch['input_lengths'].float() / model.stride).int()
@@ -156,7 +170,7 @@ def train(config):
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.get('clip_grad_norm', 15))
             optimizer.step()
             lr_scheduler.step()
-            warmup_scheduler.dampen()
+            # warmup_scheduler.dampen()
 
             if batch_idx % config.wandb.get('log_interval', 5000) == 0:
                 target_strings = decoder.convert_to_strings(batch['text'])
@@ -178,7 +192,6 @@ def train(config):
         model.eval()
         val_stats = defaultdict(list)
         for batch_idx, batch in enumerate(val_dataloader):
-            batch = {k: v.cuda() for k, v in batch.items()}
             with torch.no_grad():
                 logits = model(batch['audio'])
                 output_length = torch.ceil(batch['input_lengths'].float() / model.stride).int()

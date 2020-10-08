@@ -16,7 +16,7 @@ train:
 
 wandb:
   project: quartznet_ljspeech
-  log_interval: 300
+  log_interval: 20
 model:
   name: _quartznet5x5_config
   vocab_size: 120

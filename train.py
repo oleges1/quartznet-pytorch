@@ -10,7 +10,6 @@ import math
 
 # torchim:
 import torch
-torch.multiprocessing.set_start_method('spawn')
 from torch import nn
 from torch.utils.data import DataLoader, Subset, ConcatDataset
 # from tensorboardX import SummaryWriter
@@ -20,7 +19,7 @@ import pytorch_warmup as warmup
 # data:
 from data.librispeech import LibriDataset
 from data.ljspeech import LJSpeechDataset
-from data.collate import collate_fn, gpu_collate
+from data.collate import collate_fn, gpu_collate, no_pad_collate
 from data.transforms import (
         Compose, AddLengths, AudioSqueeze, TextPreprocess,
         MaskSpectrogram, ToNumpy, BPEtexts, MelSpectrogram,
@@ -64,12 +63,6 @@ def train(config):
         os.system(f'rm {train_data_path}')
 
     bpe = yttm.BPE(model=config.bpe.model_path)
-    def bpe_reduce(self):
-      return (
-        self.__class__,
-        (str(config.bpe.model_path),),
-      )
-    yttm.BPE.__reduce__ = bpe_reduce
 
     transforms_train = Compose([
             TextPreprocess(),
@@ -91,7 +84,10 @@ def train(config):
                 max_semitones=4,
                 p=0.5
             ),
-            AddLengths(),
+            AddLengths()
+    ])
+
+    batch_transforms_train = Compose([
             ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
             MelSpectrogram(
                 # sample_rate: 16000
@@ -102,7 +98,8 @@ def train(config):
                 probability=0.5,
                 time_mask_max_percentage=0.05,
                 frequency_mask_max_percentage=0.15
-            )
+            ),
+            Pad()
     ])
 
     transforms_val = Compose([
@@ -110,13 +107,17 @@ def train(config):
             ToNumpy(),
             BPEtexts(bpe=bpe),
             AudioSqueeze(),
-            AddLengths(),
+            AddLengths()
+    ])
+
+    batch_transforms_val = Compose([
             ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
             MelSpectrogram(
                 # sample_rate: 16000
                 sample_rate=22050, # for LJspeech
                 n_mels=config.model.feat_in
-            ).to('cuda' if torch.cuda.is_available() else 'cpu')
+            ).to('cuda' if torch.cuda.is_available() else 'cpu'),
+            Pad()
     ])
 
     # load datasets
@@ -128,10 +129,10 @@ def train(config):
 
 
     train_dataloader = DataLoader(train_dataset, num_workers=config.train.get('num_workers', 4),
-                batch_size=config.train.get('batch_size', 1), collate_fn=collate_fn, pin_memory=torch.cuda.is_available())
+                batch_size=config.train.get('batch_size', 1), collate_fn=no_pad_collate, pin_memory=torch.cuda.is_available())
 
     val_dataloader = DataLoader(val_dataset, num_workers=config.train.get('num_workers', 4),
-                batch_size=config.train.get('batch_size', 1), collate_fn=collate_fn, pin_memory=torch.cuda.is_available())
+                batch_size=config.train.get('batch_size', 1), collate_fn=no_pad_collate, pin_memory=torch.cuda.is_available())
 
 
     model = QuartzNet(
@@ -162,6 +163,7 @@ def train(config):
         # train:
         model.train()
         for batch_idx, batch in enumerate(train_dataloader):
+            batch = batch_transforms_train(batch)
             optimizer.zero_grad()
             logits = model(batch['audio'])
             output_length = torch.ceil(batch['input_lengths'].float() / model.stride).int()
@@ -183,7 +185,7 @@ def train(config):
                     "train_wer": wer,
                     "train_cer": cer,
                     "train_samples": wandb.Table(
-                        columns=['gt_text', 'pred_text'], 
+                        columns=['gt_text', 'pred_text'],
                         data=zip(target_strings, decoded_output)
                     )
                 }, step=step)
@@ -192,6 +194,7 @@ def train(config):
         model.eval()
         val_stats = defaultdict(list)
         for batch_idx, batch in enumerate(val_dataloader):
+            batch = batch_transforms_val(batch)
             with torch.no_grad():
                 logits = model(batch['audio'])
                 output_length = torch.ceil(batch['input_lengths'].float() / model.stride).int()

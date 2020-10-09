@@ -21,4 +21,4 @@ model:
   name: _quartznet5x5_config
   vocab_size: 120
   feat_in: 64
-  init_mode: kaiming_normal
+  # init_mode: kaiming_normal

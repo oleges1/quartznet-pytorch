@@ -66,16 +66,24 @@ class ToNumpy:
 class ToGpu:
     def __init__(self, device):
         self.device = device
-  
+
     def __call__(self, data):
-        data = {k: torch.from_numpy(v).to(self.device) for k, v in data.items()}
-        # data['audio'] = np.array(data['audio'])
+        data = {k: [torch.from_numpy(item).to(self.device) for item in v] for k, v in data.items()}
         return data
+
+class Pad:
+    def __call__(self, data):
+        padded_batch = {}
+        for k, v in data.items():
+            if len(v[0].shape) < 2:
+                padded_batch[k] = torch.nn.utils.rnn.pad_sequence([item[None] for item in v])
+            else:
+                padded_batch[k] = torch.nn.utils.rnn.pad_sequence(v)
+        return padded_batch
 
 class MelSpectrogram(torchaudio.transforms.MelSpectrogram):
     def forward(self, data):
         for i in range(len(data['audio'])):
-            print(data['audio'][i].shape)
             data['audio'][i] = super(MelSpectrogram, self).forward(data['audio'][i])
         return data
 

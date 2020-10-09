@@ -6,6 +6,15 @@ import numpy as np
 from torch.utils.data.dataloader import default_collate
 
 
+def no_pad_collate(batch):
+    keys = batch[0].keys()
+    collated_batch = {key: [] for key in keys}
+    for key in keys:
+        items = [item[key] for item in batch]
+        collated_batch[key] = items
+    return collated_batch
+
+
 def gpu_collate(batch):
     '''
     Padds batch of variable length
@@ -14,12 +23,14 @@ def gpu_collate(batch):
     assume it takes in images rather than arbitrary tensors.
     '''
     keys = batch[0].keys()
+    collated_batch = {key: [] for key in keys}
     for key in keys:
         items = [item[key] for item in batch]
         if len(items[0]) < 2:
             items = [item[None] for item in items]
         items = torch.nn.utils.rnn.pad_sequence(items)
-    return batch
+        collated_batch[key] = items
+    return collated_batch
 
 
 def collate_fn(batch):

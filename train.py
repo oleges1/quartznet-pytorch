@@ -23,7 +23,7 @@ from data.collate import collate_fn, gpu_collate, no_pad_collate
 from data.transforms import (
         Compose, AddLengths, AudioSqueeze, TextPreprocess,
         MaskSpectrogram, ToNumpy, BPEtexts, MelSpectrogram,
-        ToGpu
+        ToGpu, Pad
 )
 import youtokentome as yttm
 
@@ -83,8 +83,8 @@ def train(config):
                 min_semitones=-4,
                 max_semitones=4,
                 p=0.5
-            ),
-            AddLengths()
+            )
+            # AddLengths()
     ])
 
     batch_transforms_train = Compose([
@@ -99,6 +99,7 @@ def train(config):
                 time_mask_max_percentage=0.05,
                 frequency_mask_max_percentage=0.15
             ),
+            AddLengths(),
             Pad()
     ])
 
@@ -106,8 +107,7 @@ def train(config):
             TextPreprocess(),
             ToNumpy(),
             BPEtexts(bpe=bpe),
-            AudioSqueeze(),
-            AddLengths()
+            AudioSqueeze()
     ])
 
     batch_transforms_val = Compose([
@@ -117,6 +117,7 @@ def train(config):
                 sample_rate=22050, # for LJspeech
                 n_mels=config.model.feat_in
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),
+            AddLengths(),
             Pad()
     ])
 
@@ -129,10 +130,10 @@ def train(config):
 
 
     train_dataloader = DataLoader(train_dataset, num_workers=config.train.get('num_workers', 4),
-                batch_size=config.train.get('batch_size', 1), collate_fn=no_pad_collate, pin_memory=torch.cuda.is_available())
+                batch_size=config.train.get('batch_size', 1), collate_fn=no_pad_collate)
 
     val_dataloader = DataLoader(val_dataset, num_workers=config.train.get('num_workers', 4),
-                batch_size=config.train.get('batch_size', 1), collate_fn=no_pad_collate, pin_memory=torch.cuda.is_available())
+                batch_size=config.train.get('batch_size', 1), collate_fn=no_pad_collate)
 
 
     model = QuartzNet(

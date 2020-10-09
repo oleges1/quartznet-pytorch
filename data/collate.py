@@ -1,6 +1,3 @@
-"""Simple collate function for data with different lengths."""
-__author__ = 'Erdene-Ochir Tuguldur'
-
 import torch
 import numpy as np
 from torch.utils.data.dataloader import default_collate

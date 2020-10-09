@@ -30,20 +30,13 @@ class AudioSqueeze:
         return data
 
 
-class AddLengths:
-    def __call__(self, data):
-        data['input_lengths'] = data['audio'].shape[-1]
-        data['target_lengths'] = data['text'].shape[0]
-        return data
-
-
 class BPEtexts:
     def __init__(self, bpe, dropout_prob=0):
         self.bpe = bpe
         self.dropout_prob = dropout_prob
 
     def __call__(self, data):
-        data['text'] = torch.tensor(self.bpe.encode(data['text'], dropout_prob=self.dropout_prob))
+        data['text'] = np.array(self.bpe.encode(data['text'], dropout_prob=self.dropout_prob))
         return data
 
 
@@ -68,18 +61,29 @@ class ToGpu:
         self.device = device
 
     def __call__(self, data):
-        data = {k: [torch.from_numpy(item).to(self.device) for item in v] for k, v in data.items()}
+        data = {k: [torch.from_numpy(np.array(item)).to(self.device) for item in v] for k, v in data.items()}
         return data
+
+
+class AddLengths:
+    def __call__(self, data):
+        data['input_lengths'] = torch.tensor([item.shape[-1] for item in data['audio']]).to(data['audio'][0].device)
+        data['target_lengths'] = torch.tensor([item.shape[0] for item in data['text']]).to(data['text'][0].device)
+        return data
+
 
 class Pad:
     def __call__(self, data):
         padded_batch = {}
         for k, v in data.items():
             if len(v[0].shape) < 2:
-                padded_batch[k] = torch.nn.utils.rnn.pad_sequence([item[None] for item in v])
+                items = [item[..., None] for item in v]
+                padded_batch[k] = torch.nn.utils.rnn.pad_sequence(items, batch_first=True)[..., 0]
             else:
-                padded_batch[k] = torch.nn.utils.rnn.pad_sequence(v)
+                items = [item.permute(1, 0) for item in v]
+                padded_batch[k] = torch.nn.utils.rnn.pad_sequence(items, batch_first=True).permute(0, 2, 1)
         return padded_batch
+
 
 class MelSpectrogram(torchaudio.transforms.MelSpectrogram):
     def forward(self, data):
@@ -103,10 +107,10 @@ class MaskSpectrogram(object):
 
                 f = random.randint(0, int(self.frequency_mask_probability*nu))
                 f0 = random.randint(0, nu - f)
-                data['audio'][i, f0:f0 + f, :] = 0
+                data['audio'][i][f0:f0 + f, :] = 0
 
                 t = random.randint(0, int(self.time_mask_probability*tau))
                 t0 = random.randint(0, tau - t)
-                data['audio'][i, :, t0:t0 + t] = 0
+                data['audio'][i][:, t0:t0 + t] = 0
 
         return data

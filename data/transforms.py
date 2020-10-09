@@ -68,7 +68,7 @@ class ToGpu:
 class AddLengths:
     def __call__(self, data):
         data['input_lengths'] = torch.tensor([item.shape[-1] for item in data['audio']]).to(data['audio'][0].device)
-        data['target_lengths'] = torch.tensor([item.shape[0] for item in data['text']]).to(data['text'][0].device)
+        data['target_lengths'] = torch.tensor([item.shape[0] for item in data['text']]).to(data['audio'][0].device)
         return data
 
 
@@ -87,7 +87,8 @@ class Pad:
 
 class MelSpectrogram(torchaudio.transforms.MelSpectrogram):
     def forward(self, data):
-        data['audio'] = super(MelSpectrogram, self).forward(data['audio'])
+        for i in range(len(data['audio'])):
+            data['audio'][i] = super(MelSpectrogram, self).forward(data['audio'][i])
         return data
 
 

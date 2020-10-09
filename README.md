@@ -7,6 +7,7 @@ Quartznet implementation on pytorch [https://arxiv.org/abs/1910.10261]
  - 2 datasets support: Librispeech and LJSpeech
  - Weights & Biases logging
  - CTC beam search interation (need check)
+ - GPU-based MelSpectrogram
  
 ## Trained models:
 

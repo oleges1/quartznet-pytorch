@@ -87,8 +87,7 @@ class Pad:
 
 class MelSpectrogram(torchaudio.transforms.MelSpectrogram):
     def forward(self, data):
-        for i in range(len(data['audio'])):
-            data['audio'][i] = super(MelSpectrogram, self).forward(data['audio'][i])
+        data['audio'] = super(MelSpectrogram, self).forward(data['audio'])
         return data
 
 

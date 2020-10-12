@@ -177,7 +177,7 @@ def train(config):
 
             if batch_idx % config.wandb.get('log_interval', 5000) == 0:
                 target_strings = decoder.convert_to_strings(batch['text'])
-                decoded_output, _ = decoder.decode(logits.permute(0, 2, 1).softmax(dim=2))
+                decoded_output = decoder.decode(logits.permute(0, 2, 1).softmax(dim=2))
                 wer = np.mean([decoder.wer(true, pred) for true, pred in zip(target_strings, decoded_output)])
                 cer = np.mean([decoder.cer(true, pred) for true, pred in zip(target_strings, decoded_output)])
                 step = epoch_idx * len(train_dataloader) * train_dataloader.batch_size + batch_idx * train_dataloader.batch_size
@@ -202,7 +202,7 @@ def train(config):
                 loss = criterion(logits.permute(2, 0, 1).log_softmax(dim=2), batch['text'], output_length, batch['target_lengths'])
 
             target_strings = decoder.convert_to_strings(batch['text'])
-            decoded_output, _ = decoder.decode(logits.permute(0, 2, 1).softmax(dim=2))
+            decoded_output = decoder.decode(logits.permute(0, 2, 1).softmax(dim=2))
             wer = np.mean([decoder.wer(true, pred) for true, pred in zip(target_strings, decoded_output)])
             cer = np.mean([decoder.cer(true, pred) for true, pred in zip(target_strings, decoded_output)])
             val_stats['val_loss'].append(loss.item())

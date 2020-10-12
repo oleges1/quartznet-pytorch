@@ -77,77 +77,6 @@ class Decoder(object):
         s1_concated, s2_concated = s1.replace(self.space_simbol, ''), s2.replace(self.space_simbol, '')
         return Lev.distance(s1_concated, s2_concated) / len(s1)
 
-    def decode(self, probs, sizes=None):
-        """
-        Given a matrix of character probabilities, returns the decoder's
-        best guess of the transcription
-        Arguments:
-            probs: Tensor of character probabilities, where probs[c,t]
-                            is the probability of character c at time t
-            sizes(optional): Size of each sequence in the mini-batch
-        Returns:
-            string: sequence of the model's best guess for the transcription
-        """
-        raise NotImplementedError
-
-
-class BeamCTCDecoder(Decoder):
-    def __init__(self, labels, lm_path=None, alpha=0, beta=0, cutoff_top_n=40, cutoff_prob=1.0, beam_width=100,
-                 num_processes=4, blank_index=0):
-        super(BeamCTCDecoder, self).__init__(labels)
-        try:
-            from ctcdecode import CTCBeamDecoder
-        except ImportError:
-            raise ImportError("BeamCTCDecoder requires paddledecoder package.")
-        self._decoder = CTCBeamDecoder(labels, lm_path, alpha, beta, cutoff_top_n, cutoff_prob, beam_width,
-                                       num_processes, blank_index)
-
-    def convert_to_strings(self, out, seq_len):
-        results = []
-        for b, batch in enumerate(out):
-            utterances = []
-            for p, utt in enumerate(batch):
-                size = seq_len[b][p]
-                if size > 0:
-                    transcript = ''.join(map(lambda x: self.int_to_char(x.item()), utt[0:size]))
-                else:
-                    transcript = ''
-                utterances.append(transcript)
-            results.append(utterances)
-        return results
-
-    def convert_tensor(self, offsets, sizes):
-        results = []
-        for b, batch in enumerate(offsets):
-            utterances = []
-            for p, utt in enumerate(batch):
-                size = sizes[b][p]
-                if sizes[b][p] > 0:
-                    utterances.append(utt[0:size])
-                else:
-                    utterances.append(torch.tensor([], dtype=torch.int))
-            results.append(utterances)
-        return results
-
-    def decode(self, probs, sizes=None):
-        """
-        Decodes probability output using ctcdecode package.
-        Arguments:
-            probs: Tensor of character probabilities, where probs[c,t]
-                            is the probability of character c at time t
-            sizes: Size of each sequence in the mini-batch
-        Returns:
-            string: sequences of the model's best guess for the transcription
-        """
-        probs = probs.cpu()
-        out, scores, offsets, seq_lens = self._decoder.decode(probs, sizes)
-
-        strings = self.convert_to_strings(out, seq_lens)
-        offsets = self.convert_tensor(offsets, seq_lens)
-        return strings, offsets
-
-
-class GreedyDecoder(Decoder):
     def convert_to_strings(self, sequences, sizes=None, remove_repetitions=False, return_offsets=False):
         """Given a list of numeric sequences, returns the corresponding strings"""
         strings = []
@@ -182,6 +111,80 @@ class GreedyDecoder(Decoder):
 
     def decode(self, probs, sizes=None):
         """
+        Given a matrix of character probabilities, returns the decoder's
+        best guess of the transcription
+        Arguments:
+            probs: Tensor of character probabilities, where probs[c,t]
+                            is the probability of character c at time t
+            sizes(optional): Size of each sequence in the mini-batch
+        Returns:
+            string: sequence of the model's best guess for the transcription
+        """
+        raise NotImplementedError
+
+
+class BeamCTCDecoder(Decoder):
+    def __init__(self, bpe, lm_path=None, alpha=0, beta=0, cutoff_top_n=40, cutoff_prob=1.0, beam_width=100,
+                 num_processes=4, blank_index=0):
+        self.labels = labels = bpe.vocab()
+        super(BeamCTCDecoder, self).__init__(bpe=bpe)
+        try:
+            from ctcdecode import CTCBeamDecoder
+        except ImportError:
+            raise ImportError("BeamCTCDecoder requires paddledecoder package.")
+        self._decoder = CTCBeamDecoder(labels, 
+                model_path=lm_path, alpha=alpha, beta=beta, cutoff_top_n=cutoff_top_n, 
+                cutoff_prob=cutoff_prob, beam_width=beam_width, num_processes=num_processes, blank_id=self.blank_index)
+
+    def convert_to_strings_ctc(self, out, seq_len):
+        results = []
+        for b, batch in enumerate(out):
+            utterances = []
+            for p, utt in enumerate(batch):
+                size = seq_len[b][p]
+                if size > 0:
+                    transcript = ''.join(map(lambda x: self.int_to_char(x.item()), utt[0:size]))
+                else:
+                    transcript = ''
+                utterances.append(transcript)
+            results.append(utterances)
+        return results
+
+    def convert_tensor_ctc(self, offsets, sizes):
+        results = []
+        for b, batch in enumerate(offsets):
+            utterances = []
+            for p, utt in enumerate(batch):
+                size = sizes[b][p]
+                if sizes[b][p] > 0:
+                    utterances.append(utt[0:size])
+                else:
+                    utterances.append(torch.tensor([], dtype=torch.int))
+            results.append(utterances)
+        return results
+
+    def decode(self, probs, sizes=None):
+        """
+        Decodes probability output using ctcdecode package.
+        Arguments:
+            probs: Tensor of character probabilities, where probs[c,t]
+                            is the probability of character c at time t
+            sizes: Size of each sequence in the mini-batch
+        Returns:
+            string: sequences of the model's best guess for the transcription
+        """
+        probs = probs.cpu()
+        out, scores, offsets, seq_lens = self._decoder.decode(probs, sizes)
+        # print(scores)
+        strings = self.convert_to_strings_ctc(out, seq_lens)
+        strings = [item[0] for item in strings]
+        # offsets = self.convert_tensor_ctc(offsets, seq_lens)
+        return strings
+
+
+class GreedyDecoder(Decoder):
+    def decode(self, probs, sizes=None):
+        """
         Returns the argmax decoding given the probability matrix. Removes
         repeated elements in the sequence, as well as blanks.
         Arguments:
@@ -194,4 +197,4 @@ class GreedyDecoder(Decoder):
         _, max_probs = torch.max(probs, 2)
         strings, offsets = self.convert_to_strings(max_probs.view(max_probs.size(0), max_probs.size(1)), sizes,
                                                    remove_repetitions=True, return_offsets=True)
-        return strings, offsets
+        return strings

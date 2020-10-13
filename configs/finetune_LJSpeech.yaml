@@ -15,7 +15,7 @@ train:
   optimizer:
     lr: 0.0005 # 0.0003 - Karpathy great constant for Adam
     weight_decay: 0.0001 # leave default
-
+  from_checkpoint: model_36_0.36604105617182675.pth
 wandb:
   project: quartznet_ljspeech
   log_interval: 20

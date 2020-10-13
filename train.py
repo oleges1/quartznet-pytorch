@@ -7,6 +7,7 @@ import argparse
 from tqdm import tqdm
 from collections import defaultdict
 import math
+import argparse
 
 # torchim:
 import torch
@@ -39,29 +40,15 @@ from model.quartznet import QuartzNet
 # utils:
 import yaml
 from easydict import EasyDict as edict
-from utils import fix_seeds, remove_from_dict
+from utils import fix_seeds, remove_from_dict, prepare_bpe
 import wandb
-# from misc.optimizers import AdamW, Novograd
-# from misc.lr_policies import noam_v1, cosine_annealing
 from decoder import GreedyDecoder, BeamCTCDecoder
 
 # TODO: wrap to trainer class
 def train(config):
     fix_seeds(seed=config.train.get('seed', 42))
     dataset_module = getattr(data, config.dataset.name)
-    # train BPE
-    if config.bpe.get('train', False):
-        dataset, ids = dataset_module.get_dataset(config, part='bpe', transforms=TextPreprocess())
-        train_data_path = 'bpe_texts.txt'
-        with open(train_data_path, "w") as f:
-            # run ovefr only train part
-            for i in indices[:int(config.dataset.get('train_part', 0.95) * len(dataset))]:
-                text = dataset.get_text(i)
-                f.write(f"{text}\n")
-        yttm.BPE.train(data=train_data_path, vocab_size=config.model.vocab_size, model=config.bpe.model_path)
-        os.system(f'rm {train_data_path}')
-
-    bpe = yttm.BPE(model=config.bpe.model_path)
+    bpe = prepare_bpe(config)
 
     transforms_train = Compose([
             TextPreprocess(),
@@ -89,8 +76,7 @@ def train(config):
     batch_transforms_train = Compose([
             ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
             MelSpectrogram(
-                # sample_rate: 16000
-                sample_rate=22050, # for LJspeech
+                sample_rate=config.dataset.get('sample_rate', 16000),
                 n_mels=config.model.feat_in
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),
             MaskSpectrogram(
@@ -112,8 +98,7 @@ def train(config):
     batch_transforms_val = Compose([
             ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
             MelSpectrogram(
-                # sample_rate: 16000
-                sample_rate=22050, # for LJspeech
+                sample_rate=config.dataset.get('sample_rate', 16000), # for LJspeech
                 n_mels=config.model.feat_in
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),
             AddLengths(),
@@ -221,7 +206,10 @@ def train(config):
 
 
 if __name__ == '__main__':
-    # TODO: argparse here
-    with open("configs/train.yaml", 'r') as stream:
+    parser = argparse.ArgumentParser(description='Training model.')
+    parser.add_argument('--config', default='configs/train_LJSpeech.yml',
+                        help='path to config file')
+    args = parser.parse_args()
+    with open(args.config, 'r') as f:
         config = edict(yaml.safe_load(stream))
     train(config)

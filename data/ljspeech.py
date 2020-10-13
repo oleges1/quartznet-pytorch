@@ -1,6 +1,7 @@
 from torch.utils import data
 import torchaudio
 import os
+from torch.utils.data import Subset
 
 class LJSpeechDataset(torchaudio.datasets.LJSPEECH):
     def __init__(self, transforms, *args, **kwargs):

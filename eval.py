@@ -6,6 +6,7 @@ from tqdm import tqdm
 from collections import defaultdict
 import math
 import argparse
+import importlib
 
 import data
 from utils import fix_seeds, remove_from_dict, prepare_bpe
@@ -32,7 +33,7 @@ from decoder import GreedyDecoder, BeamCTCDecoder
 
 def evaluate(config):
     fix_seeds(seed=config.train.get('seed', 42))
-    dataset_module = getattr(data, config.dataset.name)
+    dataset_module = importlib.import_module(f'.{config.dataset.name}', data.__name__)
     bpe = prepare_bpe(config)
 
     transforms_val = Compose([

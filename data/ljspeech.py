@@ -25,16 +25,16 @@ def get_dataset(config, transforms=lambda x: x, part='train'):
     if part == 'train':
         dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=transforms)
         indices = list(range(len(dataset)))
-        dataset = Subset(dataset, indices[:int(config.dataset.get('train_part', 0.95) * len(train_dataset))])
+        dataset = Subset(dataset, indices[:int(config.dataset.get('train_part', 0.95) * len(dataset))])
         return dataset
     elif part == 'val':
         dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=transforms)
         indices = list(range(len(dataset)))
-        dataset = Subset(dataset, indices[int(config.dataset.get('train_part', 0.95) * len(train_dataset)):])
+        dataset = Subset(dataset, indices[int(config.dataset.get('train_part', 0.95) * len(dataset)):])
         return dataset
     elif part == 'bpe':
         dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=transforms)
-        indices = list(range(len(dataset)))[:int(config.dataset.get('train_part', 0.95) * len(train_dataset))]
+        indices = list(range(len(dataset)))[:int(config.dataset.get('train_part', 0.95) * len(dataset))]
         return dataset, indices
     else:
         raise ValueError('Unknown')

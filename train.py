@@ -8,6 +8,7 @@ from tqdm import tqdm
 from collections import defaultdict
 import math
 import argparse
+import importlib
 
 # torchim:
 import torch
@@ -47,7 +48,7 @@ from decoder import GreedyDecoder, BeamCTCDecoder
 # TODO: wrap to trainer class
 def train(config):
     fix_seeds(seed=config.train.get('seed', 42))
-    dataset_module = getattr(data, config.dataset.name)
+    dataset_module = importlib.import_module(f'.{config.dataset.name}', data.__name__)
     bpe = prepare_bpe(config)
 
     transforms_train = Compose([

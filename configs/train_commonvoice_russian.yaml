@@ -17,7 +17,7 @@ train:
     weight_decay: 0.0001 # leave default
 
 wandb:
-  project: quartznet_ljspeech
+  project: quartznet_commonvoice_rus
   log_interval: 20
 model:
   name: _quartznet5x5_config

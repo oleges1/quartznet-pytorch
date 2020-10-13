@@ -1,5 +1,5 @@
 # quartznet-pytorch
-Quartznet implementation on pytorch [https://arxiv.org/abs/1910.10261]
+Automatic Speech Recognition via Quartznet. Re-implementation on pytorch of [https://arxiv.org/abs/1910.10261].
 
 ## Features:
  - Youtokentome tokenization with BPE dropout

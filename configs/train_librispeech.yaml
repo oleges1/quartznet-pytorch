@@ -1,7 +1,7 @@
 dataset:
-  root: DB/LJspeech
+  root: DB/LibriSpeech
   train_part: 0.95
-  name: ljspeech
+  name: librispeech
 bpe:
   train: true
   model_path: yttm.bpe
@@ -20,6 +20,6 @@ wandb:
   log_interval: 20
 model:
   name: _quartznet5x5_config
-  vocab_size: 120
+  vocab_size: 80
   feat_in: 64
   # init_mode: kaiming_normal

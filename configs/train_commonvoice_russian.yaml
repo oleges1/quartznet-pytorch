@@ -1,7 +1,8 @@
 dataset:
-  root: DB/LJspeech
+  root: DB/CommonVoice
   train_part: 0.95
-  name: ljspeech
+  name: commonvoice
+  language: russian
 bpe:
   train: true
   model_path: yttm.bpe

@@ -17,8 +17,7 @@ import numpy as np
 import pytorch_warmup as warmup
 
 # data:
-from data.librispeech import LibriDataset
-from data.ljspeech import LJSpeechDataset
+import data
 from data.collate import collate_fn, gpu_collate, no_pad_collate
 from data.transforms import (
         Compose, AddLengths, AudioSqueeze, TextPreprocess,
@@ -49,10 +48,10 @@ from decoder import GreedyDecoder, BeamCTCDecoder
 # TODO: wrap to trainer class
 def train(config):
     fix_seeds(seed=config.train.get('seed', 42))
+    dataset_module = getattr(data, config.dataset.name)
     # train BPE
     if config.bpe.get('train', False):
-        dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=lambda x: x)
-        indices = list(range(len(dataset)))
+        dataset, ids = dataset_module.get_dataset(config, part='bpe', transforms=TextPreprocess())
         train_data_path = 'bpe_texts.txt'
         with open(train_data_path, "w") as f:
             # run ovefr only train part
@@ -122,19 +121,15 @@ def train(config):
     ])
 
     # load datasets
-    train_dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=transforms_train)
-    indices = list(range(len(train_dataset)))
-    train_dataset = Subset(train_dataset, indices[:int(config.dataset.get('train_part', 0.95) * len(train_dataset))])
-    val_dataset = LJSpeechDataset(root=config.dataset.root, download=True, transforms=transforms_val)
-    val_dataset = Subset(val_dataset, indices[int(config.dataset.get('train_part', 0.95) * len(val_dataset)):])
+    train_dataset = dataset_module.get_dataset(config, transforms=transforms_train, part='train')
+    val_dataset = dataset_module.get_dataset(config, transforms=transforms_val, part='val')
 
 
     train_dataloader = DataLoader(train_dataset, num_workers=config.train.get('num_workers', 4),
                 batch_size=config.train.get('batch_size', 1), collate_fn=no_pad_collate)
 
     val_dataloader = DataLoader(val_dataset, num_workers=config.train.get('num_workers', 4),
-                batch_size=config.train.get('batch_size', 1), collate_fn=no_pad_collate)
-
+                batch_size=1, collate_fn=no_pad_collate)
 
     model = QuartzNet(
         model_config=getattr(quartznet_configs, config.model.name, '_quartznet5x5_config'),

@@ -1,5 +1,5 @@
 # quartznet-pytorch
-Automatic Speech Recognition via Quartznet. Re-implementation on pytorch of [https://arxiv.org/abs/1910.10261].
+Automatic Speech Recognition (ASR) on pytorch. Re-implementation on pytorch of Nvidia's [Quartznet](https://arxiv.org/abs/1910.10261).
 
 ## Features:
  - Youtokentome tokenization with BPE dropout

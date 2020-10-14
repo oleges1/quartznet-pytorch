@@ -17,6 +17,12 @@ from data.transforms import (
         ToGpu, Pad
 )
 
+import torch
+from torch import nn
+from torch.utils.data import DataLoader, Subset, ConcatDataset
+# from tensorboardX import SummaryWriter
+import numpy as np
+
 from functools import partial
 
 # model:
@@ -69,6 +75,7 @@ def evaluate(config):
     if torch.cuda.is_available():
         model = model.cuda()
 
+    criterion = nn.CTCLoss(blank=0, reduction='mean', zero_infinity=True)
     decoder = BeamCTCDecoder(bpe=bpe)
 
     model.eval()

@@ -99,7 +99,7 @@ class NormalizedMelSpectrogram(torchaudio.transforms.MelSpectrogram):
         if normalize == 'to05':
             self.normalize = Normalize([0.5], [0.5])
         elif normalize == 'touniform':
-            self.normalize = lambda x: (x - torch.mean(x)) / (torch.std(x) + 1e-18)
+            self.normalize = lambda x: (x - torch.mean(x, dim=1, keepdim=True)) / (torch.std(x, dim=1, keepdim=True) + 1e-18)
         else:
             self.normalize = None
 

@@ -8,6 +8,8 @@ from torchvision.transforms import Normalize
 # import youtokentome as yttm
 # from torch.utils import data
 
+PUNCTUATION = string.punctuation + '—–«»−…‑'
+
 
 class Compose(object):
     """Composes several transforms together."""
@@ -43,7 +45,7 @@ class BPEtexts:
 
 class TextPreprocess:
     def __call__(self, data):
-        data['text'] = data['text'].lower().strip().translate(str.maketrans('', '', string.punctuation))
+        data['text'] = data['text'].lower().strip().translate(str.maketrans('', '', PUNCTUATION))
         return data
 
 

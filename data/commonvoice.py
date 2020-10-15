@@ -3,6 +3,9 @@ import torchaudio
 import os
 from torch.utils.data import Subset
 
+
+# there is a bug with download dataset using torchudio code, maybe pull request
+
 class CommonVoiceDataset(torchaudio.datasets.COMMONVOICE):
     def __init__(self, transforms, *args, **kwargs):
         if kwargs.get('download', False):
@@ -25,6 +28,7 @@ def get_dataset(config, transforms=lambda x: x, part='train'):
             root=config.dataset.root,
             tsv=config.dataset.get('train_tsv', 'train.tsv'),
             url=config.dataset.get('language', 'english'),
+            version=config.dataset.get('version', ''),
             download=True, transforms=transforms)
         return dataset
     elif part == 'val':
@@ -32,6 +36,7 @@ def get_dataset(config, transforms=lambda x: x, part='train'):
             root=config.dataset.root,
             tsv=config.dataset.get('val_tsv', 'dev.tsv'),
             url=config.dataset.get('language', 'english'),
+            version=config.dataset.get('version', ''),
             download=True, transforms=transforms)
         return dataset
     elif part == 'bpe':
@@ -39,6 +44,7 @@ def get_dataset(config, transforms=lambda x: x, part='train'):
             root=config.dataset.root,
             tsv=config.dataset.get('train_tsv', 'train.tsv'),
             url=config.dataset.get('language', 'english'),
+            version=config.dataset.get('version', ''),
             download=True, transforms=transforms)
         indices = list(range(len(dataset)))
         return dataset, indices

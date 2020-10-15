@@ -2,6 +2,7 @@ dataset:
   root: DB/LibriSpeech
   train_part: 0.95
   name: librispeech
+  normalize: True
 bpe:
   train: true
   model_path: yttm.bpe
@@ -22,4 +23,4 @@ model:
   name: _quartznet5x5_config
   vocab_size: 80
   feat_in: 64
-  # init_mode: kaiming_normal
+  init_mode: kaiming_normal

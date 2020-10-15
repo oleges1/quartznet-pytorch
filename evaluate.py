@@ -14,7 +14,7 @@ from data.collate import collate_fn, gpu_collate, no_pad_collate
 from data.transforms import (
         Compose, AddLengths, AudioSqueeze, TextPreprocess,
         MaskSpectrogram, ToNumpy, BPEtexts, MelSpectrogram,
-        ToGpu, Pad
+        ToGpu, Pad, NormalizedMelSpectrogram
 )
 
 import torch
@@ -51,9 +51,10 @@ def evaluate(config):
 
     batch_transforms_val = Compose([
             ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
-            MelSpectrogram(
+            NormalizedMelSpectrogram(
                 sample_rate=config.dataset.get('sample_rate', 16000), # for LJspeech
-                n_mels=config.model.feat_in
+                n_mels=config.model.feat_in,
+                apply_normalize=config.data.get('normalize', False)
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),
             AddLengths(),
             Pad()

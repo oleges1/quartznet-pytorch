@@ -94,14 +94,17 @@ class MelSpectrogram(torchaudio.transforms.MelSpectrogram):
 
 
 class NormalizedMelSpectrogram(torchaudio.transforms.MelSpectrogram):
-    def __init__(self, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], *args, **kwargs):
+    def __init__(self, apply_normalize=True, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], *args, **kwargs):
         super(MelSpectrogram, self).__init__(*args, **kwargs)
-        self.normalize = Normalize(mean, std)
+        self.normalize = Normalize(mean, std) if apply_normalize else None
 
     def forward(self, data):
         for i in range(len(data['audio'])):
-            logmelsec = torch.log(torch.clamp(super(MelSpectrogram, self).forward(data['audio'][i]), min=1e-18))
-            data['audio'][i] = self.normalize(logmelsec)
+            melsec = super(MelSpectrogram, self).forward(data['audio'][i])
+            if self.normalize is not None:
+                logmelsec = torch.log(torch.clamp(melsec, min=1e-18))
+                melsec = self.normalize(logmelsec)
+            data['audio'][i] = melsec
         return data
 
 

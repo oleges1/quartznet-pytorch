@@ -25,7 +25,7 @@ class QuartzNet(nn.Module):
         layers = []
         for lcfg in model_config:
             self.stride *= lcfg['stride']
-            
+
             groups = lcfg.get('groups', 1)
             separable = lcfg.get('separable', False)
             residual = lcfg.get('residual', True)

@@ -54,7 +54,7 @@ def evaluate(config):
             NormalizedMelSpectrogram(
                 sample_rate=config.dataset.get('sample_rate', 16000), # for LJspeech
                 n_mels=config.model.feat_in,
-                apply_normalize=config.dataset.get('normalize', False)
+                normalize=config.dataset.get('normalize', None)
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),
             AddLengths(),
             Pad()

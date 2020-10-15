@@ -1,7 +1,7 @@
 dataset:
-  root: DB/LibriSpeech
+  root: DB/CommonVoice
   train_part: 0.95
-  name: librispeech
+  name: commonvoice
   normalize: touniform
 bpe:
   train: true
@@ -17,10 +17,10 @@ train:
     weight_decay: 0.0001 # leave default
 
 wandb:
-  project: quartznet_librispeech
+  project: quartznet_commonvoice
   log_interval: 20
 model:
   name: _quartznet5x5_config
-  vocab_size: 80
+  vocab_size: 120
   feat_in: 64
   # init_mode: kaiming_normal

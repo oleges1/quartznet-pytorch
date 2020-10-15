@@ -94,9 +94,15 @@ class MelSpectrogram(torchaudio.transforms.MelSpectrogram):
 
 
 class NormalizedMelSpectrogram(torchaudio.transforms.MelSpectrogram):
-    def __init__(self, apply_normalize=True, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], *args, **kwargs):
+    def __init__(self, normalize=None, *args, **kwargs):
         super(NormalizedMelSpectrogram, self).__init__(*args, **kwargs)
-        self.normalize = Normalize(mean, std) if apply_normalize else None
+        if normalize == 'to05':
+            self.normalize = Normalize([0.5], [0.5])
+        elif normalize == 'touniform':
+            self.normalize = lambda x: (x - torch.mean(x)) / (torch.std(x) + 1e-18)
+        else:
+            self.normalize = None
+
 
     def forward(self, data):
         for i in range(len(data['audio'])):

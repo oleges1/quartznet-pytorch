@@ -2,6 +2,7 @@ dataset:
   root: DB/CommonVoice
   train_part: 0.95
   name: commonvoice
+  normalize: touniform
   language: russian
 bpe:
   train: true

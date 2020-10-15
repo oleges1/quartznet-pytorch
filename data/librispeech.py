@@ -18,8 +18,11 @@ class LibriDataset(torchaudio.datasets.LIBRISPEECH):
         fileid = self._walker[idx]
         speaker_id, chapter_id, utterance_id = fileid.split("-")
 
-        file_text = speaker_id + "-" + chapter_id + ext_txt
-        file_text = os.path.join(path, speaker_id, chapter_id, file_text)
+        file_text = speaker_id + "-" + chapter_id + self._ext_txt
+        file_text = os.path.join(self._path, speaker_id, chapter_id, file_text)
+
+        fileid_audio = speaker_id + "-" + chapter_id + "-" + utterance_id
+        file_audio = fileid_audio + self._ext_audio
 
         # Load text
         with open(file_text) as ft:

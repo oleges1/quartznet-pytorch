@@ -103,7 +103,7 @@ class NormalizedMelSpectrogram(torchaudio.transforms.MelSpectrogram):
             melsec = super(NormalizedMelSpectrogram, self).forward(data['audio'][i])
             if self.normalize is not None:
                 logmelsec = torch.log(torch.clamp(melsec, min=1e-18))
-                melsec = self.normalize(logmelsec)
+                melsec = self.normalize(logmelsec[None])[0]
             data['audio'][i] = melsec
         return data
 

@@ -24,7 +24,7 @@ from data.collate import collate_fn, gpu_collate, no_pad_collate
 from data.transforms import (
         Compose, AddLengths, AudioSqueeze, TextPreprocess,
         MaskSpectrogram, ToNumpy, BPEtexts, MelSpectrogram,
-        ToGpu, Pad
+        ToGpu, Pad, NormalizedMelSpectrogram
 )
 import youtokentome as yttm
 
@@ -76,7 +76,7 @@ def train(config):
 
     batch_transforms_train = Compose([
             ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
-            MelSpectrogram(
+            NormalizedMelSpectrogram(
                 sample_rate=config.dataset.get('sample_rate', 16000),
                 n_mels=config.model.feat_in
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),
@@ -98,7 +98,7 @@ def train(config):
 
     batch_transforms_val = Compose([
             ToGpu('cuda' if torch.cuda.is_available() else 'cpu'),
-            MelSpectrogram(
+            NormalizedMelSpectrogram(
                 sample_rate=config.dataset.get('sample_rate', 16000), # for LJspeech
                 n_mels=config.model.feat_in
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),

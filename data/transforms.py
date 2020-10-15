@@ -4,6 +4,7 @@ import random
 import numpy as np
 import torch
 import string
+from torchvision.transforms import Normalize
 # import youtokentome as yttm
 # from torch.utils import data
 
@@ -89,6 +90,18 @@ class MelSpectrogram(torchaudio.transforms.MelSpectrogram):
     def forward(self, data):
         for i in range(len(data['audio'])):
             data['audio'][i] = super(MelSpectrogram, self).forward(data['audio'][i])
+        return data
+
+
+class NormalizedMelSpectrogram(torchaudio.transforms.MelSpectrogram):
+    def __init__(self, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], *args, **kwargs):
+        super(MelSpectrogram, self).__init__(*args, **kwargs)
+        self.normalize = Normalize(mean, std)
+
+    def forward(self, data):
+        for i in range(len(data['audio'])):
+            logmelsec = torch.log(torch.clamp(super(MelSpectrogram, self).forward(data['audio'][i]), min=1e-18))
+            data['audio'][i] = self.normalize(logmelsec)
         return data
 
 

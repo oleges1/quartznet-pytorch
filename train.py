@@ -79,7 +79,7 @@ def train(config):
             NormalizedMelSpectrogram(
                 sample_rate=config.dataset.get('sample_rate', 16000),
                 n_mels=config.model.feat_in,
-                apply_normalize=config.data.get('normalize', False)
+                apply_normalize=config.dataset.get('normalize', False)
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),
             MaskSpectrogram(
                 probability=0.5,
@@ -102,7 +102,7 @@ def train(config):
             NormalizedMelSpectrogram(
                 sample_rate=config.dataset.get('sample_rate', 16000), # for LJspeech
                 n_mels=config.model.feat_in,
-                apply_normalize=config.data.get('normalize', False)
+                apply_normalize=config.dataset.get('normalize', False)
             ).to('cuda' if torch.cuda.is_available() else 'cpu'),
             AddLengths(),
             Pad()

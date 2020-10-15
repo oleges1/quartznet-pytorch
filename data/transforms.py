@@ -95,7 +95,7 @@ class MelSpectrogram(torchaudio.transforms.MelSpectrogram):
 
 class NormalizedMelSpectrogram(torchaudio.transforms.MelSpectrogram):
     def __init__(self, apply_normalize=True, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], *args, **kwargs):
-        super(MelSpectrogram, self).__init__(*args, **kwargs)
+        super(NormalizedMelSpectrogram, self).__init__(*args, **kwargs)
         self.normalize = Normalize(mean, std) if apply_normalize else None
 
     def forward(self, data):

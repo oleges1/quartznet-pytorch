@@ -10,7 +10,13 @@ class CommonVoiceDataset(torchaudio.datasets.COMMONVOICE):
     def __init__(self, transforms, *args, **kwargs):
         if kwargs.get('download', False):
             os.makedirs(kwargs['root'], exist_ok=True)
-        super(CommonVoiceDataset, self).__init__(*args, **kwargs)
+        try:
+            super(CommonVoiceDataset, self).__init__(*args, **kwargs)
+        except FileNotFoundError:
+            kwargs['root'] = '/'.join(kwargs['root'].split('/')[:-1])
+            kwargs['version'] = ''
+            kwargs['download'] = False
+            super(CommonVoiceDataset, self).__init__(*args, **kwargs)
         self.transforms = transforms
 
     def __getitem__(self, idx):
@@ -28,24 +34,24 @@ def get_dataset(config, transforms=lambda x: x, part='train'):
             root=config.dataset.root,
             tsv=config.dataset.get('train_tsv', 'train.tsv'),
             url=config.dataset.get('language', 'english'),
-            version=config.dataset.get('version', ''),
-            download=True, transforms=transforms)
+            version=config.dataset.get('version', 'cv-corpus-4-2019-12-10'),
+            download=config.dataset.get('download', True), transforms=transforms)
         return dataset
     elif part == 'val':
         dataset = CommonVoiceDataset(
             root=config.dataset.root,
             tsv=config.dataset.get('val_tsv', 'dev.tsv'),
             url=config.dataset.get('language', 'english'),
-            version=config.dataset.get('version', ''),
-            download=True, transforms=transforms)
+            version=config.dataset.get('version', 'cv-corpus-4-2019-12-10'),
+            download=config.dataset.get('download', True), transforms=transforms)
         return dataset
     elif part == 'bpe':
         dataset = CommonVoiceDataset(
             root=config.dataset.root,
             tsv=config.dataset.get('train_tsv', 'train.tsv'),
             url=config.dataset.get('language', 'english'),
-            version=config.dataset.get('version', ''),
-            download=True, transforms=transforms)
+            version=config.dataset.get('version', 'cv-corpus-4-2019-12-10'),
+            download=config.dataset.get('download', True), transforms=transforms)
         indices = list(range(len(dataset)))
         return dataset, indices
     else:

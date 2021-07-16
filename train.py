@@ -214,5 +214,5 @@ if __name__ == '__main__':
                         help='path to config file')
     args = parser.parse_args()
     with open(args.config, 'r') as f:
-        config = edict(yaml.safe_load(stream))
+        config = edict(yaml.safe_load(f))
     train(config)
